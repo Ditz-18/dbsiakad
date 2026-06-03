@@ -1,0 +1,8 @@
+✅ Laravel install         100%
+✅ Database & Migration    100%
+✅ Sanctum                 100%
+✅ Models                  100%
+⏳ Controllers             0%
+⏳ Middleware & Routes     0%
+⏳ Seeder (data awal)      0%
+⏳ Integrasi Frontend      0%
