@@ -21,6 +21,7 @@ use App\Http\Controllers\Mahasiswa\KtmController as MahasiswaKtm;
 
 // Dosen
 use App\Http\Controllers\Dosen\DashboardController as DosenDashboard;
+use App\Http\Controllers\Dosen\ProfilController as DosenProfil;
 use App\Http\Controllers\Dosen\KelasController;
 use App\Http\Controllers\Dosen\NilaiController;
 use App\Http\Controllers\Dosen\AbsensiController as DosenAbsensi;
@@ -37,56 +38,60 @@ use App\Http\Controllers\Admin\SemesterController;
 use App\Http\Controllers\Admin\PembayaranController as AdminPembayaran;
 use App\Http\Controllers\Admin\SuratController;
 use App\Http\Controllers\Admin\PengumumanController as AdminPengumuman;
+use App\Http\Controllers\Admin\ProgramStudiController;
 use App\Http\Controllers\Admin\KtmController;
 use App\Http\Controllers\Admin\LaporanController;
 use App\Http\Controllers\Admin\UjianController as AdminUjian;
 
 // ─────────────────────────────────────────────
-// PUBLIC ROUTES (tidak butuh login)
+// PUBLIC ROUTES
 // ─────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
-    Route::post('login', [LoginController::class, 'login']);
+    Route::post('login',           [LoginController::class, 'login']);
     Route::post('forgot-password', [PasswordResetController::class, 'sendResetLink']);
-    Route::post('reset-password', [PasswordResetController::class, 'reset']);
+    Route::post('reset-password',  [PasswordResetController::class, 'reset']);
 });
 
 // ─────────────────────────────────────────────
-// PROTECTED ROUTES (butuh login)
+// PROTECTED ROUTES
 // ─────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
 
-    // Logout (semua role)
     Route::post('auth/logout', [LoginController::class, 'logout']);
-    Route::get('auth/me', [LoginController::class, 'me']);
+    Route::get('auth/me',      [LoginController::class, 'me']);
 
     // ── MAHASISWA ──────────────────────────────
     Route::middleware('role:mahasiswa')->prefix('mahasiswa')->group(function () {
         Route::get('dashboard', [MahasiswaDashboard::class, 'index']);
 
-        Route::get('profil', [ProfilController::class, 'show']);
-        Route::put('profil', [ProfilController::class, 'update']);
+        Route::get('profil',           [ProfilController::class, 'show']);
+        Route::put('profil',           [ProfilController::class, 'update']);
+        Route::put('profil/password',  [ProfilController::class, 'gantiPassword']);
 
-        Route::get('krs', [MahasiswaKrs::class, 'index']);
-        Route::post('krs', [MahasiswaKrs::class, 'store']);
+        Route::get('krs',         [MahasiswaKrs::class, 'index']);
+        Route::post('krs',        [MahasiswaKrs::class, 'store']);
         Route::delete('krs/{id}', [MahasiswaKrs::class, 'destroy']);
 
-        Route::get('khs', [KhsController::class, 'index']);
+        Route::get('khs',      [KhsController::class, 'index']);
+        Route::get('jadwal',   [JadwalController::class, 'index']);
+        Route::get('absensi',  [MahasiswaAbsensi::class, 'index']);
 
-        Route::get('jadwal', [JadwalController::class, 'index']);
-
-        Route::get('absensi', [MahasiswaAbsensi::class, 'index']);
-
-        Route::get('pembayaran', [MahasiswaPembayaran::class, 'index']);
+        Route::get('pembayaran',  [MahasiswaPembayaran::class, 'index']);
         Route::post('pembayaran', [MahasiswaPembayaran::class, 'store']);
 
-        Route::get('dokumen', [DokumenController::class, 'index']);
-        Route::post('dokumen', [DokumenController::class, 'store']);
-        Route::get('dokumen/{id}', [DokumenController::class, 'show']);
+        Route::get('dokumen',       [DokumenController::class, 'index']);
+        Route::post('dokumen',      [DokumenController::class, 'store']);
+        Route::get('dokumen/{id}',  [DokumenController::class, 'show']);
 
-        Route::get('ujian', [MahasiswaUjian::class, 'index']);
-        Route::get('ujian/{id}', [MahasiswaUjian::class, 'show']);
+        // Ujian
+        Route::get('ujian',                       [MahasiswaUjian::class, 'index']);
+        Route::get('ujian/{id}',                  [MahasiswaUjian::class, 'show']);
+        Route::get('ujian/{id}/soal',             [MahasiswaUjian::class, 'soal']);
+        Route::post('ujian/{id}/jawab',           [MahasiswaUjian::class, 'jawab']);
+        Route::post('ujian/{id}/submit',          [MahasiswaUjian::class, 'submit']);
+        Route::post('ujian/{id}/pelanggaran',     [MahasiswaUjian::class, 'pelanggaran']);
 
-        Route::get('pengumuman', [MahasiswaPengumuman::class, 'index']);
+        Route::get('pengumuman',      [MahasiswaPengumuman::class, 'index']);
         Route::get('pengumuman/{id}', [MahasiswaPengumuman::class, 'show']);
 
         Route::get('ktm', [MahasiswaKtm::class, 'show']);
@@ -96,60 +101,84 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:dosen')->prefix('dosen')->group(function () {
         Route::get('dashboard', [DosenDashboard::class, 'index']);
 
-        Route::get('kelas', [KelasController::class, 'index']);
+        Route::get('profil',          [DosenProfil::class, 'show']);
+        Route::put('profil',          [DosenProfil::class, 'update']);
+        Route::put('profil/password', [DosenProfil::class, 'gantiPassword']);
+
+        Route::get('kelas',      [KelasController::class, 'index']);
         Route::get('kelas/{id}', [KelasController::class, 'show']);
 
-        Route::get('kelas/{kelasId}/nilai', [NilaiController::class, 'index']);
-        Route::post('kelas/{kelasId}/nilai', [NilaiController::class, 'store']);
-        Route::put('kelas/{kelasId}/nilai/{id}', [NilaiController::class, 'update']);
+        Route::get('kelas/{kelasId}/nilai',       [NilaiController::class, 'index']);
+        Route::post('kelas/{kelasId}/nilai',      [NilaiController::class, 'store']);
+        Route::put('kelas/{kelasId}/nilai/{id}',  [NilaiController::class, 'update']);
 
-        Route::get('kelas/{kelasId}/absensi', [DosenAbsensi::class, 'index']);
-        Route::put('kelas/{kelasId}/absensi/{id}', [DosenAbsensi::class, 'update']);
+        Route::get('kelas/{kelasId}/absensi',     [DosenAbsensi::class, 'index']);
+        Route::put('kelas/{kelasId}/absensi/{id}',[DosenAbsensi::class, 'update']);
 
-        Route::get('bimbingan', [BimbinganController::class, 'index']);
-        Route::get('bimbingan/{mahasiswaId}', [BimbinganController::class, 'show']);
+        Route::get('bimbingan',                          [BimbinganController::class, 'index']);
+        Route::get('bimbingan/{mahasiswaId}',            [BimbinganController::class, 'show']);
+        Route::post('bimbingan/{mahasiswaId}/catatan',   [BimbinganController::class, 'storeCatatan']);
 
-        Route::get('krs', [KrsPersetujuanController::class, 'index']);
+        Route::get('krs',              [KrsPersetujuanController::class, 'index']);
         Route::put('krs/{id}/setujui', [KrsPersetujuanController::class, 'setujui']);
-        Route::put('krs/{id}/tolak', [KrsPersetujuanController::class, 'tolak']);
+        Route::put('krs/{id}/tolak',   [KrsPersetujuanController::class, 'tolak']);
 
-        Route::get('ujian', [DosenUjian::class, 'index']);
-        Route::post('ujian', [DosenUjian::class, 'store']);
-        Route::put('ujian/{id}', [DosenUjian::class, 'update']);
-        Route::delete('ujian/{id}', [DosenUjian::class, 'destroy']);
+        // Ujian + Soal
+        Route::get('ujian',                              [DosenUjian::class, 'index']);
+        Route::post('ujian',                             [DosenUjian::class, 'store']);
+        Route::put('ujian/{id}',                         [DosenUjian::class, 'update']);
+        Route::delete('ujian/{id}',                      [DosenUjian::class, 'destroy']);
+        Route::get('ujian/{id}/soal',                    [DosenUjian::class, 'indexSoal']);
+        Route::post('ujian/{id}/soal',                   [DosenUjian::class, 'storeSoal']);
+        Route::put('ujian/{ujianId}/soal/{soalId}',      [DosenUjian::class, 'updateSoal']);
+        Route::delete('ujian/{ujianId}/soal/{soalId}',   [DosenUjian::class, 'destroySoal']);
     });
 
     // ── ADMIN ──────────────────────────────────
     Route::middleware('role:admin')->prefix('admin')->group(function () {
         Route::get('dashboard', [AdminDashboard::class, 'index']);
 
-        Route::apiResource('mahasiswa', MahasiswaController::class);
-        Route::apiResource('dosen', DosenController::class);
+        Route::apiResource('mahasiswa',   MahasiswaController::class);
+        Route::apiResource('dosen',       DosenController::class);
         Route::apiResource('mata-kuliah', MataKuliahController::class);
-        Route::apiResource('semester', SemesterController::class);
+        Route::apiResource('semester',    SemesterController::class);
 
-        Route::get('pembayaran', [AdminPembayaran::class, 'index']);
-        Route::put('pembayaran/{id}/konfirmasi', [AdminPembayaran::class, 'konfirmasi']);
+        // Program Studi
+        Route::get('program-studi',       [ProgramStudiController::class, 'index']);
+        Route::post('program-studi',      [ProgramStudiController::class, 'store']);
+        Route::put('program-studi/{id}',  [ProgramStudiController::class, 'update']);
 
-        Route::get('surat', [SuratController::class, 'index']);
-        Route::put('surat/{id}/proses', [SuratController::class, 'proses']);
-        Route::put('surat/{id}/selesai', [SuratController::class, 'selesai']);
-        Route::put('surat/{id}/tolak', [SuratController::class, 'tolak']);
+        // Pembayaran
+        Route::get('pembayaran',                    [AdminPembayaran::class, 'index']);
+        Route::post('pembayaran',                   [AdminPembayaran::class, 'store']);
+        Route::put('pembayaran/{id}/konfirmasi',     [AdminPembayaran::class, 'konfirmasi']);
+        Route::delete('pembayaran/{id}',            [AdminPembayaran::class, 'destroy']);
 
-        Route::get('pengumuman', [AdminPengumuman::class, 'index']);
-        Route::post('pengumuman', [AdminPengumuman::class, 'store']);
-        Route::put('pengumuman/{id}', [AdminPengumuman::class, 'update']);
-        Route::delete('pengumuman/{id}', [AdminPengumuman::class, 'destroy']);
+        // Surat
+        Route::get('surat',               [SuratController::class, 'index']);
+        Route::put('surat/{id}/proses',   [SuratController::class, 'proses']);
+        Route::put('surat/{id}/selesai',  [SuratController::class, 'selesai']);
+        Route::put('surat/{id}/tolak',    [SuratController::class, 'tolak']);
 
-        Route::get('ktm/{mahasiswaId}', [KtmController::class, 'show']);
+        // Pengumuman
+        Route::get('pengumuman',          [AdminPengumuman::class, 'index']);
+        Route::post('pengumuman',         [AdminPengumuman::class, 'store']);
+        Route::get('pengumuman/{id}',     [AdminPengumuman::class, 'show']);
+        Route::put('pengumuman/{id}',     [AdminPengumuman::class, 'update']);
+        Route::delete('pengumuman/{id}',  [AdminPengumuman::class, 'destroy']);
+
+        // KTM
+        Route::get('ktm/{mahasiswaId}',           [KtmController::class, 'show']);
         Route::post('ktm/{mahasiswaId}/generate', [KtmController::class, 'generate']);
 
+        // Laporan
         Route::get('laporan/mahasiswa', [LaporanController::class, 'mahasiswa']);
-        Route::get('laporan/keuangan', [LaporanController::class, 'keuangan']);
-        Route::get('laporan/akademik', [LaporanController::class, 'akademik']);
+        Route::get('laporan/keuangan',  [LaporanController::class, 'keuangan']);
+        Route::get('laporan/akademik',  [LaporanController::class, 'akademik']);
 
-        Route::get('ujian', [AdminUjian::class, 'index']);
-        Route::get('ujian/{id}', [AdminUjian::class, 'show']);
+        // Ujian (monitoring)
+        Route::get('ujian',               [AdminUjian::class, 'index']);
+        Route::get('ujian/{id}',          [AdminUjian::class, 'show']);
         Route::put('ujian/{id}/batalkan', [AdminUjian::class, 'batalkan']);
     });
 });
