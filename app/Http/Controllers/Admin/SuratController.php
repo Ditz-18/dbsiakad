@@ -18,13 +18,29 @@ class SuratController extends Controller
         }
 
         if ($request->search) {
-            $query->where('no_pengajuan', 'like', "%{$request->search}%")
-                  ->orWhereHas('mahasiswa', function ($q) use ($request) {
-                      $q->where('nama', 'like', "%{$request->search}%");
-                  });
+            $query->where(function($q) use ($request) {
+                $q->where('no_pengajuan', 'like', "%{$request->search}%")
+                  ->orWhereHas('mahasiswa', fn($q2) =>
+                      $q2->where('nama', 'like', "%{$request->search}%")
+                         ->orWhere('nim', 'like', "%{$request->search}%")
+                  );
+            });
         }
 
-        $surat = $query->orderBy('created_at', 'desc')->paginate($request->per_page ?? 15);
+        $surat = $query->orderBy('created_at', 'desc')
+            ->paginate($request->per_page ?? 15);
+
+        return response()->json([
+            'status' => true,
+            'data'   => $surat,
+        ]);
+    }
+
+    // GET /api/admin/surat/{id}
+    public function show($id)
+    {
+        $surat = Surat::with(['mahasiswa.programStudi', 'diprosesOleh'])
+            ->findOrFail($id);
 
         return response()->json([
             'status' => true,
@@ -37,9 +53,16 @@ class SuratController extends Controller
     {
         $surat = Surat::findOrFail($id);
 
+        if ($surat->status !== 'Menunggu') {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Hanya surat berstatus Menunggu yang bisa diproses.',
+            ], 422);
+        }
+
         $surat->update([
             'status'        => 'Diproses',
-            'diproses_oleh' => $request->user()->admin->id,
+            'diproses_oleh' => $request->user()->admin?->id,
             'diproses_at'   => now(),
         ]);
 
@@ -66,7 +89,7 @@ class SuratController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'Surat telah selesai diproses.',
+            'message' => 'Surat selesai diproses.',
             'data'    => $surat->load(['mahasiswa', 'diprosesOleh']),
         ]);
     }
@@ -77,12 +100,12 @@ class SuratController extends Controller
         $surat = Surat::findOrFail($id);
 
         $request->validate([
-            'catatan' => 'required|string',
+            'catatan' => 'required|string|min:5',
         ]);
 
         $surat->update([
             'status'        => 'Ditolak',
-            'diproses_oleh' => $request->user()->admin->id,
+            'diproses_oleh' => $request->user()->admin?->id,
             'diproses_at'   => now(),
             'catatan'       => $request->catatan,
         ]);

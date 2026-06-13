@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Semester;
+use App\Models\Krs;
 use Illuminate\Http\Request;
 
 class SemesterController extends Controller
@@ -43,15 +44,17 @@ class SemesterController extends Controller
             'krs_tutup'       => 'required|date|after:krs_buka',
             'nilai_buka'      => 'required|date',
             'nilai_tutup'     => 'required|date|after:nilai_buka',
-            'status'          => 'required|in:Aktif,Arsip',
         ]);
 
-        // Jika status Aktif, nonaktifkan semester lain
-        if ($request->status === 'Aktif') {
-            Semester::where('status', 'Aktif')->update(['status' => 'Arsip']);
-        }
-
-        $semester = Semester::create($request->all());
+        // Semester baru selalu Arsip dulu, aktifkan manual
+        $semester = Semester::create(array_merge(
+            $request->only([
+                'nama','tahun_akademik','tipe',
+                'tanggal_mulai','tanggal_selesai',
+                'krs_buka','krs_tutup','nilai_buka','nilai_tutup',
+            ]),
+            ['status' => 'Arsip']
+        ));
 
         return response()->json([
             'status'  => true,
@@ -78,12 +81,18 @@ class SemesterController extends Controller
             'status'          => 'sometimes|in:Aktif,Arsip',
         ]);
 
-        // Jika diubah jadi Aktif, nonaktifkan semester lain
+        // Jika diubah jadi Aktif, arsipkan yang lain
         if ($request->status === 'Aktif') {
-            Semester::where('status', 'Aktif')->where('id', '!=', $id)->update(['status' => 'Arsip']);
+            Semester::where('status', 'Aktif')
+                ->where('id', '!=', $id)
+                ->update(['status' => 'Arsip']);
         }
 
-        $semester->update($request->all());
+        $semester->update($request->only([
+            'nama','tahun_akademik','tipe',
+            'tanggal_mulai','tanggal_selesai',
+            'krs_buka','krs_tutup','nilai_buka','nilai_tutup','status',
+        ]));
 
         return response()->json([
             'status'  => true,
@@ -96,6 +105,24 @@ class SemesterController extends Controller
     public function destroy($id)
     {
         $semester = Semester::findOrFail($id);
+
+        // Guard: tidak boleh hapus semester Aktif
+        if ($semester->status === 'Aktif') {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Semester aktif tidak dapat dihapus. Arsipkan terlebih dahulu.',
+            ], 422);
+        }
+
+        // Guard: tidak boleh hapus jika sudah ada KRS/nilai
+        $adaData = Krs::where('semester_id', $id)->exists();
+        if ($adaData) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Semester tidak dapat dihapus karena sudah memiliki data KRS/nilai.',
+            ], 422);
+        }
+
         $semester->delete();
 
         return response()->json([

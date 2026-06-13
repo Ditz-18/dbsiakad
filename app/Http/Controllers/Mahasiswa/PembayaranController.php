@@ -17,15 +17,37 @@ class PembayaranController extends Controller
         $pembayaran = Pembayaran::where('mahasiswa_id', $mahasiswa->id)
             ->with('semester')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(fn($p) => [
+                'id'             => $p->id,
+                'semester'       => $p->semester->nama ?? '—',
+                'nominal'        => $p->nominal,
+                'status'         => $p->status,
+                'tanggal_bayar'  => $p->tanggal_bayar,
+                'no_referensi'   => $p->no_referensi,
+                'dikonfirmasi'   => $p->dikonfirmasi_oleh ? true : false,
+            ]);
+
+        // Tagihan semester aktif
+        $semesterAktif = Semester::aktif()->first();
+        $tagihanAktif  = null;
+        if ($semesterAktif) {
+            $tagihanAktif = Pembayaran::where('mahasiswa_id', $mahasiswa->id)
+                ->where('semester_id', $semesterAktif->id)
+                ->with('semester')
+                ->first();
+        }
 
         return response()->json([
             'status' => true,
-            'data'   => $pembayaran,
+            'data'   => [
+                'tagihan_aktif' => $tagihanAktif,
+                'riwayat'       => $pembayaran,
+            ],
         ]);
     }
 
-    // POST /api/mahasiswa/pembayaran
+    // POST /api/mahasiswa/pembayaran  — upload bukti bayar
     public function store(Request $request)
     {
         $mahasiswa     = $request->user()->mahasiswa;
@@ -38,13 +60,13 @@ class PembayaranController extends Controller
             ], 422);
         }
 
-        // Cek sudah pernah bayar semester ini
-        $exists = Pembayaran::where('mahasiswa_id', $mahasiswa->id)
+        // Cek sudah lunas
+        $sudahLunas = Pembayaran::where('mahasiswa_id', $mahasiswa->id)
             ->where('semester_id', $semesterAktif->id)
             ->where('status', 'Lunas')
             ->exists();
 
-        if ($exists) {
+        if ($sudahLunas) {
             return response()->json([
                 'status'  => false,
                 'message' => 'Pembayaran semester ini sudah lunas.',
@@ -52,16 +74,21 @@ class PembayaranController extends Controller
         }
 
         $request->validate([
+            'no_referensi' => 'required|string|max:255',
             'nominal'      => 'required|integer|min:1',
-            'no_referensi' => 'required|string',
         ]);
 
+        // Update tagihan yang ada, atau buat baru jika belum ada tagihan
         $pembayaran = Pembayaran::updateOrCreate(
-            ['mahasiswa_id' => $mahasiswa->id, 'semester_id' => $semesterAktif->id],
             [
-                'nominal'      => $request->nominal,
-                'no_referensi' => $request->no_referensi,
-                'status'       => 'Menunggak',
+                'mahasiswa_id' => $mahasiswa->id,
+                'semester_id'  => $semesterAktif->id,
+            ],
+            [
+                'nominal'       => $request->nominal,
+                'no_referensi'  => $request->no_referensi,
+                'tanggal_bayar' => now()->toDateString(),
+                'status'        => 'Menunggak', // Menunggu konfirmasi admin
             ]
         );
 
