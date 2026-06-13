@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dosen;
 
 use App\Http\Controllers\Controller;
 use App\Models\Ujian;
+use App\Models\SoalUjian;
 use App\Models\LogUjian;
 use App\Models\Kelas;
 use App\Models\Semester;
@@ -20,13 +21,11 @@ class UjianController extends Controller
         $ujian = Ujian::where('dosen_id', $dosen->id)
             ->where('semester_id', optional($semesterAktif)->id)
             ->with(['kelas.mataKuliah', 'semester'])
+            ->withCount('soal')
             ->orderBy('mulai_at')
             ->get();
 
-        return response()->json([
-            'status' => true,
-            'data'   => $ujian,
-        ]);
+        return response()->json(['status' => true, 'data' => $ujian]);
     }
 
     // POST /api/dosen/ujian
@@ -35,16 +34,15 @@ class UjianController extends Controller
         $dosen = $request->user()->dosen;
 
         $request->validate([
-            'nama'             => 'required|string',
-            'kelas_id'         => 'required|exists:kelas,id',
-            'tipe'             => 'required|in:Kuis,UTS,UAS',
-            'durasi'           => 'required|integer|min:10',
-            'mulai_at'         => 'required|date',
-            'selesai_at'       => 'required|date|after:mulai_at',
-            'max_pelanggaran'  => 'required|integer|min:1',
+            'nama'            => 'required|string',
+            'kelas_id'        => 'required|exists:kelas,id',
+            'tipe'            => 'required|in:Kuis,UTS,UAS',
+            'durasi'          => 'required|integer|min:10',
+            'mulai_at'        => 'required|date',
+            'selesai_at'      => 'required|date|after:mulai_at',
+            'max_pelanggaran' => 'required|integer|min:1',
         ]);
 
-        // Pastikan kelas milik dosen ini
         $kelas = Kelas::where('id', $request->kelas_id)
             ->where('dosen_id', $dosen->id)
             ->firstOrFail();
@@ -73,10 +71,7 @@ class UjianController extends Controller
     public function update(Request $request, $id)
     {
         $dosen = $request->user()->dosen;
-
-        $ujian = Ujian::where('id', $id)
-            ->where('dosen_id', $dosen->id)
-            ->firstOrFail();
+        $ujian = Ujian::where('id', $id)->where('dosen_id', $dosen->id)->firstOrFail();
 
         $request->validate([
             'nama'            => 'sometimes|string',
@@ -89,7 +84,7 @@ class UjianController extends Controller
         ]);
 
         $ujian->update($request->only([
-            'nama', 'tipe', 'durasi', 'mulai_at', 'selesai_at', 'status', 'max_pelanggaran',
+            'nama','tipe','durasi','mulai_at','selesai_at','status','max_pelanggaran',
         ]));
 
         return response()->json([
@@ -103,7 +98,6 @@ class UjianController extends Controller
     public function destroy(Request $request, $id)
     {
         $dosen = $request->user()->dosen;
-
         $ujian = Ujian::where('id', $id)
             ->where('dosen_id', $dosen->id)
             ->where('status', 'Draft')
@@ -111,9 +105,89 @@ class UjianController extends Controller
 
         $ujian->delete();
 
+        return response()->json(['status' => true, 'message' => 'Ujian berhasil dihapus.']);
+    }
+
+    // GET /api/dosen/ujian/{id}/soal
+    public function indexSoal(Request $request, $id)
+    {
+        $dosen = $request->user()->dosen;
+        Ujian::where('id', $id)->where('dosen_id', $dosen->id)->firstOrFail();
+
+        $soal = SoalUjian::where('ujian_id', $id)->orderBy('nomor')->get();
+
+        return response()->json(['status' => true, 'data' => $soal]);
+    }
+
+    // POST /api/dosen/ujian/{id}/soal
+    public function storeSoal(Request $request, $id)
+    {
+        $dosen = $request->user()->dosen;
+        Ujian::where('id', $id)->where('dosen_id', $dosen->id)->firstOrFail();
+
+        $request->validate([
+            'pertanyaan'    => 'required|string',
+            'tipe'          => 'required|in:pilihan_ganda,essay',
+            'pilihan'       => 'required_if:tipe,pilihan_ganda|array',
+            'jawaban_benar' => 'required_if:tipe,pilihan_ganda|string',
+            'bobot'         => 'integer|min:1',
+        ]);
+
+        $nomorTerakhir = SoalUjian::where('ujian_id', $id)->max('nomor') ?? 0;
+
+        $soal = SoalUjian::create([
+            'ujian_id'      => $id,
+            'nomor'         => $nomorTerakhir + 1,
+            'pertanyaan'    => $request->pertanyaan,
+            'tipe'          => $request->tipe,
+            'pilihan'       => $request->pilihan,
+            'jawaban_benar' => $request->jawaban_benar,
+            'bobot'         => $request->bobot ?? 1,
+        ]);
+
         return response()->json([
             'status'  => true,
-            'message' => 'Ujian berhasil dihapus.',
+            'message' => 'Soal berhasil ditambahkan.',
+            'data'    => $soal,
+        ], 201);
+    }
+
+    // PUT /api/dosen/ujian/{ujianId}/soal/{soalId}
+    public function updateSoal(Request $request, $ujianId, $soalId)
+    {
+        $dosen = $request->user()->dosen;
+        Ujian::where('id', $ujianId)->where('dosen_id', $dosen->id)->firstOrFail();
+
+        $soal = SoalUjian::where('id', $soalId)->where('ujian_id', $ujianId)->firstOrFail();
+
+        $soal->update($request->only([
+            'pertanyaan','tipe','pilihan','jawaban_benar','bobot',
+        ]));
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Soal berhasil diperbarui.',
+            'data'    => $soal,
         ]);
+    }
+
+    // DELETE /api/dosen/ujian/{ujianId}/soal/{soalId}
+    public function destroySoal(Request $request, $ujianId, $soalId)
+    {
+        $dosen = $request->user()->dosen;
+        Ujian::where('id', $ujianId)->where('dosen_id', $dosen->id)->firstOrFail();
+
+        $soal = SoalUjian::where('id', $soalId)->where('ujian_id', $ujianId)->firstOrFail();
+        $soal->delete();
+
+        // Re-nomor soal yang tersisa
+        SoalUjian::where('ujian_id', $ujianId)
+            ->orderBy('nomor')
+            ->get()
+            ->each(function ($s, $idx) {
+                $s->update(['nomor' => $idx + 1]);
+            });
+
+        return response()->json(['status' => true, 'message' => 'Soal berhasil dihapus.']);
     }
 }

@@ -29,6 +29,17 @@ class PengumumanController extends Controller
         ]);
     }
 
+    // GET /api/admin/pengumuman/{id}
+    public function show($id)
+    {
+        $pengumuman = Pengumuman::with('dibuatOleh')->findOrFail($id);
+
+        return response()->json([
+            'status' => true,
+            'data'   => $pengumuman,
+        ]);
+    }
+
     // POST /api/admin/pengumuman
     public function store(Request $request)
     {

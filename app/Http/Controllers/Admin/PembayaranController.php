@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Pembayaran;
+use App\Models\Mahasiswa;
 use Illuminate\Http\Request;
 
 class PembayaranController extends Controller
@@ -28,12 +29,48 @@ class PembayaranController extends Controller
             });
         }
 
-        $pembayaran = $query->orderBy('created_at', 'desc')->paginate($request->per_page ?? 15);
+        $pembayaran = $query->orderBy('created_at', 'desc')
+            ->paginate($request->per_page ?? 15);
 
         return response()->json([
             'status' => true,
             'data'   => $pembayaran,
         ]);
+    }
+
+    // POST /api/admin/pembayaran  (tambah tagihan UKT)
+    public function store(Request $request)
+    {
+        $request->validate([
+            'mahasiswa_id' => 'required|exists:mahasiswa,id',
+            'semester_id'  => 'required|exists:semester,id',
+            'nominal'      => 'required|integer|min:1',
+        ]);
+
+        // Cegah duplikat tagihan per mahasiswa per semester
+        $exists = Pembayaran::where('mahasiswa_id', $request->mahasiswa_id)
+            ->where('semester_id', $request->semester_id)
+            ->exists();
+
+        if ($exists) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Tagihan untuk mahasiswa dan semester ini sudah ada.',
+            ], 422);
+        }
+
+        $pembayaran = Pembayaran::create([
+            'mahasiswa_id' => $request->mahasiswa_id,
+            'semester_id'  => $request->semester_id,
+            'nominal'      => $request->nominal,
+            'status'       => 'Menunggak',
+        ]);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Tagihan berhasil ditambahkan.',
+            'data'    => $pembayaran->load(['mahasiswa', 'semester']),
+        ], 201);
     }
 
     // PUT /api/admin/pembayaran/{id}/konfirmasi
@@ -56,6 +93,27 @@ class PembayaranController extends Controller
             'status'  => true,
             'message' => 'Pembayaran berhasil dikonfirmasi.',
             'data'    => $pembayaran->load(['mahasiswa', 'semester']),
+        ]);
+    }
+
+    // DELETE /api/admin/pembayaran/{id}
+    public function destroy($id)
+    {
+        $pembayaran = Pembayaran::findOrFail($id);
+
+        // Jangan hapus yang sudah lunas untuk menjaga history
+        if ($pembayaran->status === 'Lunas') {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Tagihan yang sudah lunas tidak dapat dihapus.',
+            ], 422);
+        }
+
+        $pembayaran->delete();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Tagihan berhasil dihapus.',
         ]);
     }
 }

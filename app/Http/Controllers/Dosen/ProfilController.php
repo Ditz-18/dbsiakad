@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Mahasiswa;
+namespace App\Http\Controllers\Dosen;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -8,47 +8,37 @@ use Illuminate\Support\Facades\Hash;
 
 class ProfilController extends Controller
 {
-    // GET /api/mahasiswa/profil
+    // GET /api/dosen/profil
     public function show(Request $request)
     {
-        $mahasiswa = $request->user()->mahasiswa->load(['programStudi', 'dosenPa', 'user']);
+        $dosen = $request->user()->dosen->load(['programStudi', 'user']);
 
         return response()->json([
             'status' => true,
-            'data'   => $mahasiswa,
+            'data'   => $dosen,
         ]);
     }
 
-    // PUT /api/mahasiswa/profil
+    // PUT /api/dosen/profil
     public function update(Request $request)
     {
-        $mahasiswa = $request->user()->mahasiswa;
+        $dosen = $request->user()->dosen;
 
         $request->validate([
-            'no_hp'         => 'nullable|string|max:20',
-            'alamat'        => 'nullable|string',
-            'email'         => 'nullable|email',
-            'tempat_lahir'  => 'nullable|string|max:100',
-            'tanggal_lahir' => 'nullable|date',
-            'nama_ayah'     => 'nullable|string|max:100',
-            'nama_ibu'      => 'nullable|string|max:100',
-            'no_hp_wali'    => 'nullable|string|max:20',
+            'no_hp'          => 'nullable|string|max:20',
+            'email_akademik' => 'nullable|email',
         ]);
 
-        $mahasiswa->update($request->only([
-            'no_hp', 'alamat', 'email',
-            'tempat_lahir', 'tanggal_lahir',
-            'nama_ayah', 'nama_ibu', 'no_hp_wali',
-        ]));
+        $dosen->update($request->only(['no_hp', 'email_akademik']));
 
         return response()->json([
             'status'  => true,
             'message' => 'Profil berhasil diperbarui.',
-            'data'    => $mahasiswa->load(['programStudi', 'dosenPa']),
+            'data'    => $dosen->load('programStudi'),
         ]);
     }
 
-    // PUT /api/mahasiswa/profil/password
+    // PUT /api/dosen/profil/password
     public function gantiPassword(Request $request)
     {
         $user = $request->user();
@@ -68,7 +58,6 @@ class ProfilController extends Controller
 
         $user->update(['password' => $request->password_baru]);
 
-        // Hapus semua token lama kecuali yang sedang dipakai
         $user->tokens()->where('id', '!=', $user->currentAccessToken()->id)->delete();
 
         return response()->json([
