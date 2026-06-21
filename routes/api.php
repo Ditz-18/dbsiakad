@@ -34,6 +34,7 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
 use App\Http\Controllers\Admin\MahasiswaController;
 use App\Http\Controllers\Admin\DosenController;
 use App\Http\Controllers\Admin\MataKuliahController;
+use App\Http\Controllers\Admin\KelasController as AdminKelas;
 use App\Http\Controllers\Admin\SemesterController;
 use App\Http\Controllers\Admin\PembayaranController as AdminPembayaran;
 use App\Http\Controllers\Admin\SuratController;
@@ -67,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('profil',           [ProfilController::class, 'show']);
         Route::put('profil',           [ProfilController::class, 'update']);
         Route::put('profil/password',  [ProfilController::class, 'gantiPassword']);
+        Route::post('profil/foto',     [ProfilController::class, 'uploadFoto']);
 
         Route::get('krs',         [MahasiswaKrs::class, 'index']);
         Route::post('krs',        [MahasiswaKrs::class, 'store']);
@@ -90,6 +92,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('ujian/{id}/jawab',           [MahasiswaUjian::class, 'jawab']);
         Route::post('ujian/{id}/submit',          [MahasiswaUjian::class, 'submit']);
         Route::post('ujian/{id}/pelanggaran',     [MahasiswaUjian::class, 'pelanggaran']);
+        Route::get('ujian/{id}/pembahasan',       [MahasiswaUjian::class, 'pembahasan']);
 
         Route::get('pengumuman',      [MahasiswaPengumuman::class, 'index']);
         Route::get('pengumuman/{id}', [MahasiswaPengumuman::class, 'show']);
@@ -104,6 +107,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('profil',          [DosenProfil::class, 'show']);
         Route::put('profil',          [DosenProfil::class, 'update']);
         Route::put('profil/password', [DosenProfil::class, 'gantiPassword']);
+        Route::post('profil/foto',    [DosenProfil::class, 'uploadFoto']);
 
         Route::get('kelas',      [KelasController::class, 'index']);
         Route::get('kelas/{id}', [KelasController::class, 'show']);
@@ -113,6 +117,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('kelas/{kelasId}/nilai/{id}',  [NilaiController::class, 'update']);
 
         Route::get('kelas/{kelasId}/absensi',     [DosenAbsensi::class, 'index']);
+        Route::post('kelas/{kelasId}/absensi/catat-pertemuan', [DosenAbsensi::class, 'catatPertemuan']);
         Route::put('kelas/{kelasId}/absensi/{id}',[DosenAbsensi::class, 'update']);
 
         Route::get('bimbingan',                          [BimbinganController::class, 'index']);
@@ -132,6 +137,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('ujian/{id}/soal',                   [DosenUjian::class, 'storeSoal']);
         Route::put('ujian/{ujianId}/soal/{soalId}',      [DosenUjian::class, 'updateSoal']);
         Route::delete('ujian/{ujianId}/soal/{soalId}',   [DosenUjian::class, 'destroySoal']);
+        Route::get('ujian/{id}/hasil',                   [DosenUjian::class, 'hasil']);
     });
 
     // ── ADMIN ──────────────────────────────────
@@ -141,6 +147,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('mahasiswa',   MahasiswaController::class);
         Route::apiResource('dosen',       DosenController::class);
         Route::apiResource('mata-kuliah', MataKuliahController::class);
+        Route::apiResource('kelas',       AdminKelas::class);
         Route::apiResource('semester',    SemesterController::class);
 
         // Program Studi
