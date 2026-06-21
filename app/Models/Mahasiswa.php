@@ -14,6 +14,13 @@ class Mahasiswa extends Model
         'foto', 'email', 'no_hp', 'alamat',
         'tempat_lahir', 'tanggal_lahir',
         'nama_ayah', 'nama_ibu', 'no_hp_wali',
+        'ktm_aktif', 'ktm_berlaku_hingga', 'ktm_generated_at',
+    ];
+
+    protected $casts = [
+        'ktm_aktif'          => 'boolean',
+        'ktm_berlaku_hingga' => 'date',
+        'ktm_generated_at'   => 'datetime',
     ];
 
     public function user()         { return $this->belongsTo(User::class); }

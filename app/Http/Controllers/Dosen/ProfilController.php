@@ -38,6 +38,29 @@ class ProfilController extends Controller
         ]);
     }
 
+    // POST /api/dosen/profil/foto
+    public function uploadFoto(Request $request)
+    {
+        $dosen = $request->user()->dosen;
+
+        $request->validate([
+            'foto' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        if ($dosen->foto) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($dosen->foto);
+        }
+
+        $path = $request->file('foto')->store('foto-profil/dosen', 'public');
+        $dosen->update(['foto' => $path]);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Foto profil berhasil diperbarui.',
+            'data'    => ['foto_url' => asset('storage/' . $path)],
+        ]);
+    }
+
     // PUT /api/dosen/profil/password
     public function gantiPassword(Request $request)
     {

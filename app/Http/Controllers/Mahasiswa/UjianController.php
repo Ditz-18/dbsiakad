@@ -275,4 +275,56 @@ class UjianController extends Controller
             'sisa_izin'   => $ujian->max_pelanggaran - $sesi->pelanggaran,
         ]);
     }
+
+    // GET /api/mahasiswa/ujian/{id}/pembahasan
+    public function pembahasan(Request $request, $id)
+    {
+        $mahasiswa = $request->user()->mahasiswa;
+
+        $sesi = SesiUjian::where('ujian_id', $id)
+            ->where('mahasiswa_id', $mahasiswa->id)
+            ->where('status', 'Selesai')
+            ->first();
+
+        if (!$sesi) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Anda belum menyelesaikan ujian ini.',
+            ], 403);
+        }
+
+        $ujian = Ujian::findOrFail($id);
+        $soal  = SoalUjian::where('ujian_id', $id)->orderBy('nomor')->get();
+
+        $jawabanSaya = JawabanUjian::where('ujian_id', $id)
+            ->where('mahasiswa_id', $mahasiswa->id)
+            ->get()
+            ->keyBy('soal_id');
+
+        $pembahasan = $soal->map(function ($s) use ($jawabanSaya) {
+            $j = $jawabanSaya->get($s->id);
+            return [
+                'nomor'         => $s->nomor,
+                'pertanyaan'    => $s->pertanyaan,
+                'tipe'          => $s->tipe,
+                'pilihan'       => $s->pilihan,
+                'jawaban_benar' => $s->jawaban_benar,
+                'jawaban_saya'  => $j?->jawaban,
+                'benar'         => $s->tipe === 'pilihan_ganda'
+                    ? ($j?->jawaban === $s->jawaban_benar)
+                    : null, // essay tidak auto-dinilai
+                'bobot'         => $s->bobot,
+            ];
+        });
+
+        return response()->json([
+            'status' => true,
+            'data'   => [
+                'ujian'      => $ujian->only(['id', 'nama', 'tipe']),
+                'nilai'      => $sesi->nilai,
+                'selesai_at' => $sesi->selesai_at,
+                'pembahasan' => $pembahasan,
+            ],
+        ]);
+    }
 }

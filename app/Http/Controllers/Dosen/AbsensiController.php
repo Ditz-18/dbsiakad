@@ -23,6 +23,7 @@ class AbsensiController extends Controller
             ->get()
             ->map(fn($a) => [
                 'id'              => $a->id,
+                'mahasiswa_id'    => $a->mahasiswa_id,
                 'mahasiswa'       => $a->mahasiswa->nama,
                 'nim'             => $a->mahasiswa->nim,
                 'total_pertemuan' => $a->total_pertemuan,
@@ -77,6 +78,52 @@ class AbsensiController extends Controller
             'status'  => true,
             'message' => 'Absensi berhasil diperbarui.',
             'data'    => $absensi->load('mahasiswa'),
+        ]);
+    }
+
+    // POST /api/dosen/kelas/{kelasId}/absensi/catat-pertemuan
+    // Mencatat kehadiran untuk 1 pertemuan baru — menambah counter kumulatif setiap mahasiswa
+    public function catatPertemuan(Request $request, $kelasId)
+    {
+        $dosen = $request->user()->dosen;
+        Kelas::where('id', $kelasId)->where('dosen_id', $dosen->id)->firstOrFail();
+
+        $request->validate([
+            'tanggal'           => 'required|date',
+            'kehadiran'         => 'required|array|min:1',
+            'kehadiran.*.mahasiswa_id' => 'required|exists:mahasiswa,id',
+            'kehadiran.*.status'       => 'required|in:Hadir,Izin,Sakit,Alpha',
+        ]);
+
+        $semesterAktif = \App\Models\Semester::aktif()->first();
+        $diperbarui = 0;
+
+        foreach ($request->kehadiran as $item) {
+            $absensi = Absensi::firstOrCreate(
+                [
+                    'mahasiswa_id' => $item['mahasiswa_id'],
+                    'kelas_id'     => $kelasId,
+                    'semester_id'  => optional($semesterAktif)->id,
+                ],
+                [
+                    'total_pertemuan' => 0, 'hadir' => 0, 'izin' => 0,
+                    'sakit' => 0, 'alpha' => 0, 'persentase' => 0,
+                ]
+            );
+
+            $absensi->total_pertemuan += 1;
+            $kolom = strtolower($item['status']);
+            $absensi->{$kolom} += 1;
+            $absensi->persentase = $absensi->total_pertemuan > 0
+                ? round(($absensi->hadir / $absensi->total_pertemuan) * 100, 2)
+                : 0;
+            $absensi->save();
+            $diperbarui++;
+        }
+
+        return response()->json([
+            'status'  => true,
+            'message' => "Kehadiran pertemuan berhasil dicatat untuk {$diperbarui} mahasiswa.",
         ]);
     }
 }

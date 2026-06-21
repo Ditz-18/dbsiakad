@@ -190,4 +190,31 @@ class UjianController extends Controller
 
         return response()->json(['status' => true, 'message' => 'Soal berhasil dihapus.']);
     }
+
+    // GET /api/dosen/ujian/{id}/hasil
+    public function hasil(Request $request, $id)
+    {
+        $dosen = $request->user()->dosen;
+        $ujian = \App\Models\Ujian::where('id', $id)->where('dosen_id', $dosen->id)->firstOrFail();
+
+        $sesi = \App\Models\SesiUjian::where('ujian_id', $id)
+            ->with('mahasiswa')
+            ->get()
+            ->map(fn($s) => [
+                'nim'         => $s->mahasiswa->nim,
+                'nama'        => $s->mahasiswa->nama,
+                'nilai'       => $s->nilai,
+                'status'      => $s->status,
+                'pelanggaran' => $s->pelanggaran,
+                'selesai_at'  => $s->selesai_at,
+            ]);
+
+        return response()->json([
+            'status' => true,
+            'data'   => [
+                'ujian' => $ujian->only(['id', 'nama']),
+                'hasil' => $sesi,
+            ],
+        ]);
+    }
 }

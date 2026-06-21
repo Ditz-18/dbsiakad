@@ -48,6 +48,30 @@ class ProfilController extends Controller
         ]);
     }
 
+    // POST /api/mahasiswa/profil/foto
+    public function uploadFoto(Request $request)
+    {
+        $mahasiswa = $request->user()->mahasiswa;
+
+        $request->validate([
+            'foto' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        // Hapus foto lama jika ada
+        if ($mahasiswa->foto) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($mahasiswa->foto);
+        }
+
+        $path = $request->file('foto')->store('foto-profil/mahasiswa', 'public');
+        $mahasiswa->update(['foto' => $path]);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Foto profil berhasil diperbarui.',
+            'data'    => ['foto_url' => asset('storage/' . $path)],
+        ]);
+    }
+
     // PUT /api/mahasiswa/profil/password
     public function gantiPassword(Request $request)
     {
