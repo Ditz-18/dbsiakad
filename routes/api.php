@@ -70,6 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('profil/password',  [ProfilController::class, 'gantiPassword']);
         Route::post('profil/foto',     [ProfilController::class, 'uploadFoto']);
 
+        Route::get('krs/katalog', [MahasiswaKrs::class, 'katalog']);
         Route::get('krs',         [MahasiswaKrs::class, 'index']);
         Route::post('krs',        [MahasiswaKrs::class, 'store']);
         Route::delete('krs/{id}', [MahasiswaKrs::class, 'destroy']);
