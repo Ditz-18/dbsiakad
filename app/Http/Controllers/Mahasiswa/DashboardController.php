@@ -62,6 +62,20 @@ class DashboardController extends Controller
         $totalSksLulus = $nilaiAll->where('status', 'Lulus')
             ->sum(fn($n) => $n->kelas->mataKuliah->sks ?? 0);
 
+        // Total SKS wajib kelulusan — mengikuti standar umum per jenjang
+        $jenjang = $mahasiswa->programStudi->jenjang ?? 'S1';
+        $sksWajibMap = ['D3' => 110, 'S1' => 144, 'S2' => 40];
+        $totalSksWajib = $sksWajibMap[$jenjang] ?? 144;
+
+        // IPS (indeks prestasi semester aktif saja)
+        $ips = 0;
+        if ($semesterAktif) {
+            $nilaiSemester = $nilaiAll->where('semester_id', $semesterAktif->id);
+            $sksSemester   = $nilaiSemester->sum(fn($n) => $n->kelas->mataKuliah->sks ?? 0);
+            $bobotSemester = $nilaiSemester->sum(fn($n) => ($n->bobot ?? 0) * ($n->kelas->mataKuliah->sks ?? 0));
+            $ips = $sksSemester > 0 ? round($bobotSemester / $sksSemester, 2) : 0;
+        }
+
         // Pembayaran semester aktif
         $pembayaran = Pembayaran::where('mahasiswa_id', $mahasiswa->id)
             ->where('semester_id', optional($semesterAktif)->id)
@@ -99,7 +113,9 @@ class DashboardController extends Controller
                 'semester_aktif'  => $semesterAktif,
                 'total_sks'       => $totalSks,
                 'total_sks_lulus' => $totalSksLulus,
+                'total_sks_wajib' => $totalSksWajib,
                 'ipk'             => $ipk,
+                'ips'             => $ips,
                 'pembayaran'      => $pembayaran,
                 'jadwal_hari_ini' => $jadwalHariIni,
                 'ujian_mendatang' => $ujianMendatang,

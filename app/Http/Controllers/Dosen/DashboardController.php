@@ -21,6 +21,15 @@ class DashboardController extends Controller
             ->where('semester_id', optional($semesterAktif)->id)
             ->count();
 
+        // Total mahasiswa unik di semua kelas yang diampu (bukan mahasiswa bimbingan PA)
+        $kelasIds = Kelas::where('dosen_id', $dosen->id)
+            ->where('semester_id', optional($semesterAktif)->id)
+            ->pluck('id');
+        $totalMahasiswa = Krs::whereIn('kelas_id', $kelasIds)
+            ->where('status', 'Disetujui')
+            ->distinct('mahasiswa_id')
+            ->count('mahasiswa_id');
+
         $totalMahasiswaBimbingan = $dosen->mahasiswaBimbingan()->count();
 
         $totalKrsMenunggu = Krs::whereHas('kelas', fn($q) => $q->where('dosen_id', $dosen->id))
@@ -38,6 +47,7 @@ class DashboardController extends Controller
                 'dosen'                   => $dosen->load('programStudi'),
                 'semester_aktif'          => $semesterAktif,
                 'total_kelas'             => $totalKelas,
+                'total_mahasiswa'         => $totalMahasiswa,
                 'total_mahasiswa_bimbingan' => $totalMahasiswaBimbingan,
                 'total_krs_menunggu'      => $totalKrsMenunggu,
                 'ujian_berlangsung'       => $ujianBerlangsung,

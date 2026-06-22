@@ -11,6 +11,7 @@ use App\Models\Surat;
 use App\Models\Semester;
 use App\Models\Ujian;
 use App\Models\Pengumuman;
+use App\Models\MataKuliah;
 
 class DashboardController extends Controller
 {
@@ -49,14 +50,20 @@ class DashboardController extends Controller
 
         // Rekap pembayaran semester aktif
         $rekapPembayaran = [
-            'lunas'     => 0,
-            'menunggak' => 0,
+            'lunas'          => 0,
+            'menunggak'      => 0,
+            'persentase_ukt' => 0,
         ];
         if ($semesterAktif) {
             $rekapPembayaran['lunas'] = Pembayaran::where('semester_id', $semesterAktif->id)
                 ->where('status', 'Lunas')->count();
             $rekapPembayaran['menunggak'] = Pembayaran::where('semester_id', $semesterAktif->id)
                 ->where('status', 'Menunggak')->count();
+
+            $totalTagihan = $rekapPembayaran['lunas'] + $rekapPembayaran['menunggak'];
+            $rekapPembayaran['persentase_ukt'] = $totalTagihan > 0
+                ? round(($rekapPembayaran['lunas'] / $totalTagihan) * 100)
+                : 0;
         }
 
         return response()->json([
@@ -64,6 +71,7 @@ class DashboardController extends Controller
             'data'   => [
                 'total_mahasiswa'           => Mahasiswa::where('status', 'Aktif')->count(),
                 'total_dosen'               => Dosen::where('is_active', true)->count(),
+                'total_mata_kuliah'         => MataKuliah::where('status', 'Aktif')->count(),
                 'total_krs_menunggu'        => Krs::where('status', 'Menunggu')
                     ->where('semester_id', optional($semesterAktif)->id)->count(),
                 'total_pembayaran_menunggak'=> Pembayaran::menunggak()
